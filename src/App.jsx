@@ -343,7 +343,7 @@ function EditGoalModal({ goal, onSave, onDelete, onClose }) {
 }
 
 // ─── AI Call ─────────────────────────────────────────────────────────────────
-async function callAI(title, category, deadline) {
+async function callAI(title, category, deadline, apiKey, provider) {
   const deadlineStr = deadline ? `The final deadline is ${deadline}.` : "Spread steps reasonably over a few months.";
   const prompt = `You are a supportive goal coach. Goal: "${title}". Category: ${category}. ${deadlineStr}
 Break this into 6-9 realistic, specific micro-steps. Each step should be actionable and clear.
@@ -351,14 +351,71 @@ ${deadline ? `Distribute deadlines from today through ${deadline} progressively.
 Respond ONLY with valid JSON, no markdown, no preamble:
 {"steps":[{"text":"step description","daysFromNow":number,"estimatedHours":number}]}`;
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] })
-  });
-  const data = await res.json();
-  const text = data.content?.find(b => b.type === "text")?.text || "{}";
-  return JSON.parse(text.replace(/```json|```/g, "").trim());
+  if (provider === "google") {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+    });
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    return JSON.parse(text.replace(/```json|```/g, "").trim());
+  } else {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, messages: [{ role: "user", content: prompt }] })
+    });
+    const data = await res.json();
+    const text = data.content?.find(b => b.type === "text")?.text || "{}";
+    return JSON.parse(text.replace(/```json|```/g, "").trim());
+  }
+}
+
+// --- API Key Modal ---
+function ApiKeyModal({ onSave, onClose, current }) {
+  const [provider, setProvider] = React.useState(current.provider || "anthropic");
+  const [key, setKey] = React.useState(current.key || "");
+  const [show, setShow] = React.useState(false);
+
+  const links = {
+    anthropic: { label: "Get Anthropic key", url: "https://console.anthropic.com/", hint: "Free $5 credits on signup · ~$0.01 per plan" },
+    google: { label: "Get Gemini key (free)", url: "https://aistudio.google.com/app/apikey", hint: "Free tier available · No credit card needed" },
+  };
+
+  return (
+    React.createElement("div", { style: { position: "fixed", inset: 0, background: "#000c", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }, onClick: onClose },
+      React.createElement("div", { style: { background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: 28, width: "100%", maxWidth: 460 }, onClick: e => e.stopPropagation() },
+        React.createElement("h3", { style: { fontFamily: F.d, fontSize: 22, marginBottom: 6, color: C.text } }, "🔑 AI Settings"),
+        React.createElement("p", { style: { color: C.muted, fontSize: 13, marginBottom: 22, lineHeight: 1.6 } }, "Choose your AI provider and paste your API key. Saved only in your browser."),
+        React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 } },
+          [["anthropic", "🤖 Anthropic Claude"], ["google", "✨ Google Gemini"]].map(([p, lbl]) =>
+            React.createElement("button", { key: p, onClick: () => setProvider(p), style: { ...btnGhost, padding: "12px", fontSize: 13, textAlign: "center", background: provider === p ? `${C.accent}22` : "none", borderColor: provider === p ? C.accent : C.border, color: provider === p ? C.accent : C.muted } }, lbl)
+          )
+        ),
+        React.createElement("div", { style: { marginBottom: 14 } },
+          React.createElement("label", { style: { fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 7 } }, "API Key"),
+          React.createElement("div", { style: { position: "relative" } },
+            React.createElement("input", { type: show ? "text" : "password", value: key, onChange: e => setKey(e.target.value), placeholder: provider === "google" ? "AIza..." : "sk-ant-...", style: { ...input, paddingRight: 44 } }),
+            React.createElement("button", { onClick: () => setShow(s => !s), style: { position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 16 } }, show ? "🙈" : "👁")
+          )
+        ),
+        React.createElement("div", { style: { background: C.surface, borderRadius: 10, padding: "10px 14px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 } },
+          React.createElement("span", { style: { fontSize: 12, color: C.muted } }, links[provider].hint),
+          React.createElement("a", { href: links[provider].url, target: "_blank", rel: "noreferrer", style: { fontSize: 12, color: C.teal, whiteSpace: "nowrap", textDecoration: "none", fontWeight: 600 } }, links[provider].label + " →")
+        ),
+        React.createElement("div", { style: { display: "flex", gap: 10 } },
+          React.createElement("button", { onClick: () => { if (key.trim()) { onSave({ key: key.trim(), provider }); onClose(); } }, style: { ...btnPrimary, flex: 1 } }, "Save & Continue"),
+          React.createElement("button", { onClick: onClose, style: btnGhost }, "Cancel")
+        )
+      )
+    )
+  );
 }
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
@@ -373,6 +430,15 @@ export default function App() {
   const [detailTab, setDetailTab] = useState("steps"); // steps | mindmap
   const [addingStep, setAddingStep] = useState(false);
   const [newStep, setNewStep] = useState({ text: "", deadline: "", estimatedHours: 1 });
+  const [apiConfig, setApiConfig] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("dp_api") || "{}"); } catch { return {}; }
+  });
+  const [showApiModal, setShowApiModal] = useState(false);
+
+  const saveApiConfig = (cfg) => {
+    setApiConfig(cfg);
+    localStorage.setItem("dp_api", JSON.stringify(cfg));
+  };
 
   const CATS = ["Personal Growth","Career","Health & Fitness","Learning","Finance","Creativity","Relationships","Travel"];
   const [form, setForm] = useState({ title: "", description: "", category: "Personal Growth", deadline: "" });
@@ -387,9 +453,10 @@ export default function App() {
 
   const handleGenerate = async () => {
     if (!form.title.trim()) { setError("Please write your dream first!"); return; }
+    if (!apiConfig.key) { setShowApiModal(true); return; }
     setError(""); setLoading(true);
     try {
-      const result = await callAI(form.title, form.category, form.deadline);
+      const result = await callAI(form.title, form.category, form.deadline, apiConfig.key, apiConfig.provider);
       const today = new Date();
       const steps = result.steps.map((s, i) => {
         const d = new Date(today); d.setDate(d.getDate() + s.daysFromNow);
@@ -448,6 +515,9 @@ export default function App() {
         {[["home","🏠","Home"],["goals","🎯","Goals"],["calendar","📅","Calendar"]].map(([s,icon,lbl]) => (
           <button key={s} onClick={() => setScreen(s)} style={{ ...btnGhost, padding: "6px 12px", fontSize: 12, background: screen===s ? `${C.accent}22` : "none", borderColor: screen===s ? C.accent : C.border, color: screen===s ? C.accent : C.muted }}>{icon} {lbl}</button>
         ))}
+        <button onClick={() => setShowApiModal(true)} style={{ ...btnGhost, padding: "6px 12px", fontSize: 12, borderColor: apiConfig.key ? C.teal : C.accent, color: apiConfig.key ? C.teal : C.accent }}>
+          {apiConfig.key ? "🔑 API ✓" : "🔑 Set API Key"}
+        </button>
       </div>
     </nav>
   );
@@ -468,8 +538,9 @@ export default function App() {
 
       {editStep && <EditStepModal step={editStep} onSave={saveStep} onDelete={() => deleteStep(editStep.id)} onClose={() => setEditStep(null)} />}
       {editGoal && <EditGoalModal goal={editGoal} onSave={saveGoal} onDelete={() => deleteGoal(editGoal.id)} onClose={() => setEditGoal(null)} />}
+      {showApiModal && <ApiKeyModal current={apiConfig} onSave={saveApiConfig} onClose={() => setShowApiModal(false)} />}
 
-      <div style={{ maxWidth: 880, margin: "0 auto", padding: "28px 20px" }}>
+      <div style={{ width: "100%", padding: "28px 40px" }}>
 
         {/* HOME */}
         {screen === "home" && (
@@ -479,7 +550,7 @@ export default function App() {
               <h1 style={{ fontFamily: F.d, fontSize: 44, fontWeight: 700, lineHeight: 1.2, marginBottom: 14, color: C.text }}>
                 Turn your <span style={{ background: `linear-gradient(135deg,${C.accent},${C.accent2})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>dreams</span><br />into daily actions
               </h1>
-              <p style={{ color: C.muted, fontSize: 16, maxWidth: 440, margin: "0 auto 28px", lineHeight: 1.7 }}>
+              <p style={{ color: C.muted, fontSize: 16, maxWidth: 600, margin: "0 auto 28px", lineHeight: 1.7 }}>
                 Write any goal, set your deadline — AI breaks it into clear steps on a visual mind map and calendar.
               </p>
               <button onClick={() => setScreen("add")} style={{ ...btnPrimary, fontSize: 15, padding: "13px 32px" }}>✦ Plan a New Dream</button>
@@ -522,7 +593,7 @@ export default function App() {
 
         {/* ADD */}
         {screen === "add" && (
-          <div className="fu" style={{ maxWidth: 560, margin: "0 auto" }}>
+          <div className="fu" style={{ maxWidth: "100%" }}>
             <h2 style={{ fontFamily: F.d, fontSize: 30, marginBottom: 6 }}>✦ New Dream</h2>
             <p style={{ color: C.muted, marginBottom: 28, fontSize: 14 }}>Describe your goal and set your deadline — AI will plan the steps.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
