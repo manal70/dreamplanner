@@ -352,11 +352,15 @@ Respond ONLY with valid JSON, no markdown, no preamble:
 {"steps":[{"text":"step description","daysFromNow":number,"estimatedHours":number}]}`;
 
   if (provider === "google") {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
     });
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`Gemini API error ${res.status}: ${errBody}`);
+    }
     const data = await res.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
     return JSON.parse(text.replace(/```json|```/g, "").trim());
@@ -371,6 +375,10 @@ Respond ONLY with valid JSON, no markdown, no preamble:
       },
       body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, messages: [{ role: "user", content: prompt }] })
     });
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`Anthropic API error ${res.status}: ${errBody}`);
+    }
     const data = await res.json();
     const text = data.content?.find(b => b.type === "text")?.text || "{}";
     return JSON.parse(text.replace(/```json|```/g, "").trim());
@@ -468,7 +476,7 @@ export default function App() {
       setActiveGoal(newGoal);
       setForm({ title: "", description: "", category: "Personal Growth", deadline: "" });
       setScreen("detail");
-    } catch (e) { setError("Something went wrong. Please try again."); }
+    } catch (e) { setError(e.message || "Something went wrong. Please try again."); }
     setLoading(false);
   };
 
