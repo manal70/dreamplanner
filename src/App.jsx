@@ -379,42 +379,42 @@ Respond ONLY with valid JSON, no markdown, no preamble:
 
 // --- API Key Modal ---
 function ApiKeyModal({ onSave, onClose, current }) {
-  const [provider, setProvider] = React.useState(current.provider || "anthropic");
-  const [key, setKey] = React.useState(current.key || "");
-  const [show, setShow] = React.useState(false);
+  const [provider, setProvider] = useState(current.provider || "anthropic");
+  const [key, setKey] = useState(current.key || "");
+  const [show, setShow] = useState(false);
 
   const links = {
-    anthropic: { label: "Get Anthropic key", url: "https://console.anthropic.com/", hint: "Free $5 credits on signup · ~$0.01 per plan" },
-    google: { label: "Get Gemini key (free)", url: "https://aistudio.google.com/app/apikey", hint: "Free tier available · No credit card needed" },
+    anthropic: { label: "Get Anthropic key", url: "https://console.anthropic.com/", hint: "Free $5 credits · ~$0.01 per plan" },
+    google: { label: "Get Gemini key (free)", url: "https://aistudio.google.com/app/apikey", hint: "Free tier · No credit card needed" },
   };
 
   return (
-    React.createElement("div", { style: { position: "fixed", inset: 0, background: "#000c", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }, onClick: onClose },
-      React.createElement("div", { style: { background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: 28, width: "100%", maxWidth: 460 }, onClick: e => e.stopPropagation() },
-        React.createElement("h3", { style: { fontFamily: F.d, fontSize: 22, marginBottom: 6, color: C.text } }, "🔑 AI Settings"),
-        React.createElement("p", { style: { color: C.muted, fontSize: 13, marginBottom: 22, lineHeight: 1.6 } }, "Choose your AI provider and paste your API key. Saved only in your browser."),
-        React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 } },
-          [["anthropic", "🤖 Anthropic Claude"], ["google", "✨ Google Gemini"]].map(([p, lbl]) =>
-            React.createElement("button", { key: p, onClick: () => setProvider(p), style: { ...btnGhost, padding: "12px", fontSize: 13, textAlign: "center", background: provider === p ? `${C.accent}22` : "none", borderColor: provider === p ? C.accent : C.border, color: provider === p ? C.accent : C.muted } }, lbl)
-          )
-        ),
-        React.createElement("div", { style: { marginBottom: 14 } },
-          React.createElement("label", { style: { fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 7 } }, "API Key"),
-          React.createElement("div", { style: { position: "relative" } },
-            React.createElement("input", { type: show ? "text" : "password", value: key, onChange: e => setKey(e.target.value), placeholder: provider === "google" ? "AIza..." : "sk-ant-...", style: { ...input, paddingRight: 44 } }),
-            React.createElement("button", { onClick: () => setShow(s => !s), style: { position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 16 } }, show ? "🙈" : "👁")
-          )
-        ),
-        React.createElement("div", { style: { background: C.surface, borderRadius: 10, padding: "10px 14px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 } },
-          React.createElement("span", { style: { fontSize: 12, color: C.muted } }, links[provider].hint),
-          React.createElement("a", { href: links[provider].url, target: "_blank", rel: "noreferrer", style: { fontSize: 12, color: C.teal, whiteSpace: "nowrap", textDecoration: "none", fontWeight: 600 } }, links[provider].label + " →")
-        ),
-        React.createElement("div", { style: { display: "flex", gap: 10 } },
-          React.createElement("button", { onClick: () => { if (key.trim()) { onSave({ key: key.trim(), provider }); onClose(); } }, style: { ...btnPrimary, flex: 1 } }, "Save & Continue"),
-          React.createElement("button", { onClick: onClose, style: btnGhost }, "Cancel")
-        )
-      )
-    )
+    <div style={{ position: "fixed", inset: 0, background: "#000c", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: 28, width: "100%", maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+        <h3 style={{ fontFamily: F.d, fontSize: 22, marginBottom: 6, color: C.text }}>🔑 AI Settings</h3>
+        <p style={{ color: C.muted, fontSize: 13, marginBottom: 22, lineHeight: 1.6 }}>Choose your AI provider and paste your API key. Saved only in your browser.</p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+          {[["anthropic", "🤖 Anthropic Claude"], ["google", "✨ Google Gemini"]].map(([p, lbl]) => (
+            <button key={p} onClick={() => setProvider(p)} style={{ ...btnGhost, padding: "12px", fontSize: 13, textAlign: "center", background: provider === p ? `${C.accent}22` : "none", borderColor: provider === p ? C.accent : C.border, color: provider === p ? C.accent : C.muted }}>{lbl}</button>
+          ))}
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 7 }}>API Key</label>
+          <div style={{ position: "relative" }}>
+            <input type={show ? "text" : "password"} value={key} onChange={e => setKey(e.target.value)} placeholder={provider === "google" ? "AIza..." : "sk-ant-..."} style={{ ...input, paddingRight: 44 }} />
+            <button onClick={() => setShow(s => !s)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 16 }}>{show ? "🙈" : "👁"}</button>
+          </div>
+        </div>
+        <div style={{ background: C.surface, borderRadius: 10, padding: "10px 14px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <span style={{ fontSize: 12, color: C.muted }}>{links[provider].hint}</span>
+          <a href={links[provider].url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: C.teal, whiteSpace: "nowrap", textDecoration: "none", fontWeight: 600 }}>{links[provider].label} →</a>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => { if (key.trim()) { onSave({ key: key.trim(), provider }); onClose(); } }} style={{ ...btnPrimary, flex: 1 }}>Save & Continue</button>
+          <button onClick={onClose} style={btnGhost}>Cancel</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
